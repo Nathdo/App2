@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimization Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Ajout de la bibliothèque jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="header-container">
+        <img src="{{ url_for('static', filename='image.png') }}" alt="Logo" class="logo">
+        <h1>Optimization Results</h1>
+    </div>
+    <!-- Conteneur pour centrer le bouton -->
+    <div class="download-container">
+        <button onclick="downloadPDF()" class="download-btn">Download PDF</button>
+    </div>
+    <table id="resultsTable">
+        <thead>
+            <tr>
+                <th>Months</th>
+                <th>Savings (₪)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+                <tr>
+                    <td>{{ result.month }}</td>
+                    <td>{{ result.saving }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h3>Total saved: {{ total_saved }} sh</h3>
+    
+    <a href="/objectives" class="back-arrow">← Back</a>
+
+    <script>
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+        
+            // Ajouter un rectangle de fond violet clair en haut de la page
+            doc.setFillColor(147, 51, 234, 0.15); // Version plus claire du violet #8a2be2
+            doc.rect(0, 0, 210, 50, 'F');
+        
+            // Récupérer et ajouter le logo
+            const logo = document.querySelector('.logo');
+            doc.addImage(logo.src, 'PNG', 15, 10, 20, 20);
+        
+            // Titre stylisé
+            doc.setFontSize(24);
+            doc.setTextColor(138, 43, 226); // Le violet original #8a2be2
+            doc.text('Optimization Results', 40, 25);
+        
+            // Date de génération
+            const currentDate = new Date().toLocaleDateString();
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100); // Gris pour la date
+            doc.text(`Generated on ${currentDate}`, 40, 32);
+        
+            // Ligne décorative
+            doc.setDrawColor(138, 43, 226);
+            doc.line(15, 35, 195, 35);
+        
+            // Tableau amélioré
+            doc.autoTable({
+                html: '#resultsTable',
+                startY: 45,
+                headStyles: {
+                    fillColor: [138, 43, 226],
+                    textColor: [255, 255, 255],
+                    fontSize: 12,
+                    halign: 'center'
+                },
+                bodyStyles: {
+                    halign: 'center'
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 245, 255]
+                },
+                margin: { left: 15, right: 15 }
+            });
+        
+            // Total stylisé
+            const totalText = document.querySelector('h3').textContent;
+            const finalY = doc.previousAutoTable.finalY || 45;
+            doc.setFontSize(14);
+            doc.setTextColor(138, 43, 226);
+            doc.text(totalText, 15, finalY + 15);
+        
+            // Pied de page
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            doc.text('Page 1/1', 195, 285, { align: 'right' });
+        
+            // Téléchargement du PDF
+            doc.save('optimization_results.pdf');
+        }
+    </script>
+
+    <style>
+        .download-container {
+            text-align: center;
+            margin-bottom: 20px;
+            margin-top: -10px;
+        }
+        .download-btn {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .download-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</body>
+</html>

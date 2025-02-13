@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Income & Expenses</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header-container">
+        <img src="{{ url_for('static', filename='image.png') }}" alt="Logo" class="logo">
+        <h1>Enter your incomes and expenses</h1>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-message">
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message|safe }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/set_budget" method="POST">
+        <div class="personal-info">
+            <h3 style="color: purple;">Personal Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name:</label>
+                    <input type="text" 
+                           id="firstName" 
+                           name="firstName" 
+                           placeholder="Enter your first name" 
+                           value="{{ user_info.get('firstName', '') }}"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name:</label>
+                    <input type="text" 
+                           id="lastName" 
+                           name="lastName" 
+                           placeholder="Enter your last name" 
+                           value="{{ user_info.get('lastName', '') }}"
+                           required>
+                </div>
+            </div>
+            <div class="age-group">
+                <label for="age">Age:</label>
+                <input type="number" 
+                       id="age" 
+                       name="age" 
+                       placeholder="Enter your age" 
+                       value="{{ user_info.get('age', '') }}"
+                       min="0" 
+                       max="120" 
+                       required>
+            </div>
+        </div>
+        <div class="budget-info">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="color: purple; margin: 0;">Budget Information</h3>
+                <div class="info-icon tooltip">
+                    <i class="info-circle">i</i>
+                    <span class="tooltiptext">Please enter your average monthly income and expenses based on the last 6 months of your financial history.</span>
+                </div>
+            </div>
+            <label for="income">Monthly income:</label>
+            <input type="number" id="income" name="income" placeholder="Enter your monthly income" required>
+            <label for="expenses">Monthly expenses:</label>
+            <input type="number" id="expenses" name="expenses" placeholder="Enter your monthly expenses" required>
+        </div>
+
+        <button type="submit">Validate the budget</button>
+    </form>
+
+    <script>
+        window.addEventListener('beforeunload', function(e) {
+            localStorage.clear();
+            sessionStorage.clear();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Goals</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header-container">
+        <img src="{{ url_for('static', filename='image.png') }}" alt="Logo" class="logo">
+        <h1>Step 2: Add your goals</h1>
+    </div>
+</body>
+</html>
+
+    <!-- Résumé des informations du budget -->
+    <div class="budget-summary">
+        <h3>Your budget validated:</h3>
+        <p class="success">Your available monthly budget is {{ budget['available'] }} ₪.</p>
+    </div>
+
+    <!-- Section pour les messages flash -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <div class="flash-message">
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message|safe }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Conteneur principal pour diviser la page en deux colonnes -->
+    <div class="main-container">
+        <!-- Colonne gauche : Formulaire pour ajouter des objectifs -->
+        <div class="left-column">
+            <h3>Add a goal</h3>
+            <form action="/add_objective" method="POST">
+                <label for="objectiveName">Goal Name:</label>
+                <input type="text" id="objectiveName" name="objectiveName" required>
+                <label for="duration">Duration (months):</label>
+                <input type="number" id="duration" name="duration" required>
+                <label for="amount">Amount (sh):</label>
+                <input type="number" id="amount" name="amount" required>
+                <button type="submit">Add a goal</button>
+            </form>
+        </div>
+
+        <!-- Colonne droite : Liste des objectifs ajoutés -->
+        <div class="right-column">
+            <h3>Added Objectives:</h3>
+            <div class="objectives-list">
+                {% for objective in objectives %}
+                    <div class="objective-item">
+                        <p><strong>{{ objective.name }}</strong><br>Duration : {{ objective.duration }} months<br>Amount : {{ objective.amount }} sh</p>
+                        <form action="/delete_objective" method="POST">
+                            <input type="hidden" name="objectiveName" value="{{ objective.name }}">
+                            <button type="submit" class="delete-button">Delete</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Boutons en bas au centre -->
+    <div class="bottom-buttons">
+        <form action="/optimization_results" method="POST">
+            <button type="submit" class="optimize-button">Run Optimization</button>
+        </form>
+        <a href="/" class="back-button">← Back</a>
+    </div>
+</body>
+</html>
