@@ -2,20 +2,18 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import numpy as np
 import cvxpy as cp
 import pyodbc
+import secrets
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
+app.secret_key = secrets.token_hex(16)  # Clé secrète aléatoire
 
 #-------------------------------------------------------------Connection to SQL SERVER-------------------------------------------------------
-
-# Configuration de la base de données
 DB_CONFIG = {
     'SERVER': 'your_server_name',
     'DATABASE': 'your_database_name',
     'USERNAME': 'your_username',
     'PASSWORD': 'your_password'
 }
-
 
 def get_db_connection():
     """Établit et retourne une connexion à la base de données"""
@@ -32,15 +30,9 @@ def get_db_connection():
     except pyodbc.Error as e:
         print(f"Database connection error: {e}")
         return None
-#-------------------------------------------------------------------------------------------------------------------------------------------
-
-# Variables globales
-budget = {"income": 0, "expenses": 0, "available": 0}
-objectives = []
 
 @app.route("/")
 def home():
-
     # Test de connexion à la base de données
     conn = get_db_connection()
     if conn:
@@ -49,18 +41,20 @@ def home():
     else:
         print("Database connection failed.")
     
-    # Vérifier si c'est une nouvelle session
+    # Initialisation des données de session
     if 'initialized' not in session:
-        # Si c'est une nouvelle session, nettoyer les données
         session.clear()
         session['initialized'] = True
+        session['budget'] = {"income": 0, "expenses": 0, "available": 0}
+        session['objectives'] = []
+        session['user_info'] = {}
+    
     return render_template("budget.html", 
-                         budget=budget,
-                         user_info=session.get('user_info', {}))
+                         budget=session['budget'],
+                         user_info=session['user_info'])
 
 @app.route("/set_budget", methods=["POST"])
 def set_budget():
-    # Sauvegarder les informations personnelles dans la session
     session['user_info'] = {
         "firstName": request.form.get("firstName"),
         "lastName": request.form.get("lastName"),
@@ -70,44 +64,57 @@ def set_budget():
     income = int(request.form.get("income"))
     expenses = int(request.form.get("expenses"))
     
-    # Vérification si les dépenses sont supérieures aux revenus
     if expenses > income:
         flash("Impossible budget: your monthly expenses exceed your income. Please adjust your amounts.", "error")
         return redirect(url_for("home"))
     
-    budget["income"] = income
-    budget["expenses"] = expenses
-    remaining = income - expenses
-    budget["available"] = int(remaining * 0.9)
+    session['budget'] = {
+        "income": income,
+        "expenses": expenses,
+        "available": int((income - expenses) * 0.9)
+    }
     
     return redirect(url_for("objectives_page"))
 
 @app.route("/objectives")
 def objectives_page():
-    return render_template("objectives.html", objectives = objectives, budget = budget)
+    return render_template("objectives.html", 
+                         objectives=session.get('objectives', []), 
+                         budget=session.get('budget', {}))
 
 @app.route("/add_objective", methods=["POST"])
 def add_objective():
-    name = request.form.get("objectiveName")
-    duration = int(request.form.get("duration"))
-    amount = int(request.form.get("amount"))
-    objectives.append({"name": name, "duration": duration, "amount": amount})
+    if 'objectives' not in session:
+        session['objectives'] = []
+    
+    objectives = session['objectives']
+    objectives.append({
+        "name": request.form.get("objectiveName"),
+        "duration": int(request.form.get("duration")),
+        "amount": int(request.form.get("amount"))
+    })
+    session['objectives'] = objectives
+    
     return redirect(url_for("objectives_page"))
 
 @app.route("/delete_objective", methods=["POST"])
 def delete_objective():
     name_to_delete = request.form.get("objectiveName")
-    global objectives
-    objectives = [obj for obj in objectives if obj["name"] != name_to_delete]
+    if 'objectives' in session:
+        session['objectives'] = [obj for obj in session['objectives'] 
+                               if obj["name"] != name_to_delete]
     return redirect(url_for("objectives_page"))
 
 @app.route("/optimization_results", methods=["POST"])
 def optimization_results():
+    objectives = session.get('objectives', [])
+    budget = session.get('budget', {})
+    
     if not objectives:
         flash("No goals added. Please add at least one goal to perform optimization.", "error")
         return redirect(url_for("objectives_page"))
 
-    if budget["available"] <= 0:
+    if budget.get("available", 0) <= 0:
         flash("Your available budget is insufficient to perform optimization. Check your income and expenses.", "error")
         return redirect(url_for("objectives_page"))
 
@@ -137,7 +144,7 @@ def optimization_results():
         flash("Unable to optimize the following objectives:<br>" + "<br>".join(infeasible_report), "error")
         return redirect(url_for("objectives_page"))
 
-    # Résolution de l'optimisation si tous les objectifs sont réalisables
+    # Résolution de l'optimisation
     maximum_month = max([detail[0] for detail in lst_details])
     total_objectifs = sum([detail[1] for detail in lst_details])
     x = cp.Variable(maximum_month, nonneg=True)
