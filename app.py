@@ -34,12 +34,12 @@ def get_db_connection():
 @app.route("/")
 def home():
     # Test de connexion à la base de données
-    conn = get_db_connection()
-    if conn:
-        conn.close()
-        print("Database connection successful.")
-    else:
-        print("Database connection failed.")
+    # conn = get_db_connection()
+    # if conn:
+    #     conn.close()
+    #     print("Database connection successful.")
+    # else:
+    #     print("Database connection failed.")
     
     # Initialisation des données de session
     if 'initialized' not in session:
