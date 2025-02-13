@@ -3,6 +3,4 @@ numpy==1.26.4
 cvxpy==1.4.2
 pyodbc==5.0.1
 Werkzeug==3.0.1
-
-
-
+gunicorn==21.2.0
