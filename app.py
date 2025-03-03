@@ -86,6 +86,12 @@ def objectives_page():
 def add_objective():
     if 'objectives' not in session:
         session['objectives'] = []
+
+    duration = int(request.form.get("duration"))
+
+    if duration > 12:
+        flash("The duration of a goal cannot exceed 12 months. Please adjust your duration.", "error")
+        return redirect(url_for("objectives_page"))
     
     objectives = session['objectives']
     objectives.append({

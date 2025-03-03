@@ -39,8 +39,14 @@
             <form action="/add_objective" method="POST">
                 <label for="objectiveName">Goal Name:</label>
                 <input type="text" id="objectiveName" name="objectiveName" required>
-                <label for="duration">Duration (months):</label>
-                <input type="number" id="duration" name="duration" required>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <label for="duration">Duration (months):</label>
+                    <div class="info-icon tooltip">
+                        <i class="info-circle">i</i>
+                        <span class="tooltiptext">The program accepts a duration of objectives up to 12 months.</span>
+                    </div>
+                </div>
+                <input type="number" id="duration" name="duration" required style="width: 100%;">
                 <label for="amount">Amount (sh):</label>
                 <input type="number" id="amount" name="amount" required>
                 <button type="submit">Add a goal</button>
