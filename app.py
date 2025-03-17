@@ -1,30 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import numpy as np
 import cvxpy as cp
-import pyodbc
+import psycopg2
 import secrets
+import os
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)  # Clé secrète aléatoire
 
-#------------------------------------------------------------- Connection à SQL SERVER -------------------------------------------------------
+#------------------------------------------------------------- Connection à PostgreSQL -------------------------------------------------------
 
-DB_CONFIG = {
-    'SERVER': 'LAPTOP-E9GDKQ4I\\SQLEXPRESS',
-    'DATABASE': 'Maarehet_Meida',
-}
+# Configuration pour Render
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://maarahot_meida_user:fIhWvtfELWeDflGXVi4Kseh9D4p0LJd0@dpg-cvc87s2n91rc73cbu5dg-a.frankfurt-postgres.render.com/maarahot_meida')
 
 def get_db_connection():
-    """Établit et retourne une connexion à la base de données"""
-    conn_str = (
-        f'DRIVER={{SQL Server}};'
-        f'SERVER={DB_CONFIG["SERVER"]};'
-        f'DATABASE={DB_CONFIG["DATABASE"]};'
-    )
+    """Établit et retourne une connexion à la base de données PostgreSQL"""
     try:
-        conn = pyodbc.connect(conn_str)
+        conn = psycopg2.connect(DATABASE_URL)
         return conn
-    except pyodbc.Error as e:
+    except psycopg2.Error as e:
         print(f"Database connection error: {e}")
         return None
 
@@ -37,7 +31,7 @@ def insert_user(first_name, last_name, income, expenses):
         try:
             cursor = conn.cursor()
             # Vérifier si l'utilisateur existe déjà
-            query_check = "SELECT UserID FROM Users WHERE FirstName = ? AND LastName = ?"
+            query_check = "SELECT UserID FROM Users WHERE FirstName = %s AND LastName = %s"
             cursor.execute(query_check, (first_name, last_name))
             existing_user = cursor.fetchone()
             
@@ -47,17 +41,18 @@ def insert_user(first_name, last_name, income, expenses):
             # Insérer le nouvel utilisateur
             query = """
             INSERT INTO Users (FirstName, LastName, Income, Expenses) 
-            OUTPUT INSERTED.UserID
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
+            RETURNING UserID
             """
             cursor.execute(query, (first_name, last_name, income, expenses))
             user_id = cursor.fetchone()[0]
             conn.commit()
             return user_id
-        except pyodbc.Error as e:
+        except psycopg2.Error as e:
             print(f"Database insertion error: {e}")
             return None
         finally:
+            cursor.close()
             conn.close()
     return None
 
@@ -67,14 +62,15 @@ def get_user_id(first_name, last_name):
     if conn:
         try:
             cursor = conn.cursor()
-            query = "SELECT UserID FROM Users WHERE FirstName = ? AND LastName = ?"
+            query = "SELECT UserID FROM Users WHERE FirstName = %s AND LastName = %s"
             cursor.execute(query, (first_name, last_name))
             result = cursor.fetchone()
             return result[0] if result else None
-        except pyodbc.Error as e:
+        except psycopg2.Error as e:
             print(f"Database query error: {e}")
             return None
         finally:
+            cursor.close()
             conn.close()
     return None
 
@@ -133,23 +129,25 @@ def insert_plan(plan_name, duration, amount, user_id):
             # Insérer le plan
             cursor.execute("""
                 INSERT INTO Plans (PlanName, SumOfMonths, SumOfMoney) 
-                OUTPUT INSERTED.PlanID
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
+                RETURNING PlanID
             """, (plan_name, duration, amount))
             plan_id = cursor.fetchone()[0]
             
             # Créer l'association dans la table UserPlans
             cursor.execute("""
                 INSERT INTO UserPlans (UserID, PlanID)
-                VALUES (?, ?)
+                VALUES (%s, %s)
             """, (user_id, plan_id))
             
             conn.commit()
             return plan_id
-        except pyodbc.Error as e:
+        except psycopg2.Error as e:
             print(f"Database insertion error: {e}")
             conn.rollback()
+            return None
         finally:
+            cursor.close()
             conn.close()
     return None
 
@@ -210,15 +208,16 @@ def insert_optimization_results(user_id, savings):
             query = """
             INSERT INTO Outputs (UserID, Month1, Month2, Month3, Month4, Month5, Month6, 
                                 Month7, Month8, Month9, Month10, Month11, Month12) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor.execute(query, [user_id] + savings)
             conn.commit()
             return True
-        except pyodbc.Error as e:
+        except psycopg2.Error as e:
             print(f"Database insertion error: {e}")
             return False
         finally:
+            cursor.close()
             conn.close()
     return False
 
@@ -275,5 +274,75 @@ def delete_objective():
     
     return redirect(url_for("objectives_page"))
 
+# Script pour créer les tables nécessaires dans PostgreSQL
+def create_tables():
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            
+            # Créer la table Users
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS Users (
+                    UserID SERIAL PRIMARY KEY,
+                    FirstName VARCHAR(100) NOT NULL,
+                    LastName VARCHAR(100) NOT NULL,
+                    Income NUMERIC NOT NULL,
+                    Expenses NUMERIC NOT NULL
+                )
+            """)
+            
+            # Créer la table Plans
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS Plans (
+                    PlanID SERIAL PRIMARY KEY,
+                    PlanName VARCHAR(100) NOT NULL,
+                    SumOfMonths INTEGER NOT NULL,
+                    SumOfMoney NUMERIC NOT NULL
+                )
+            """)
+            
+            # Créer la table UserPlans
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS UserPlans (
+                    UserPlanID SERIAL PRIMARY KEY,
+                    UserID INTEGER REFERENCES Users(UserID),
+                    PlanID INTEGER REFERENCES Plans(PlanID)
+                )
+            """)
+            
+            # Créer la table Outputs
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS Outputs (
+                    OutputID SERIAL PRIMARY KEY,
+                    UserID INTEGER REFERENCES Users(UserID),
+                    Month1 NUMERIC,
+                    Month2 NUMERIC,
+                    Month3 NUMERIC,
+                    Month4 NUMERIC,
+                    Month5 NUMERIC,
+                    Month6 NUMERIC,
+                    Month7 NUMERIC,
+                    Month8 NUMERIC,
+                    Month9 NUMERIC,
+                    Month10 NUMERIC,
+                    Month11 NUMERIC,
+                    Month12 NUMERIC
+                )
+            """)
+            
+            conn.commit()
+            print("Tables created successfully")
+        except psycopg2.Error as e:
+            print(f"Error creating tables: {e}")
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8000)
+    # Créer les tables au démarrage de l'application
+    create_tables()
+    # Configurer le port pour Render (utilise la variable d'environnement PORT ou 8000 par défaut)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port)
