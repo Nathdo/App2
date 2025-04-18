@@ -34,7 +34,7 @@ Our mission: **Make financial wellness accessible to every student.**
 
 ![Save & Go Screenshot 1](Images/home.png)
 ![Save & Go Screenshot 2](Images/objectives.png)
-![Save & Go Screenshot 3](Images/output.png)
+![Save & Go Screenshot 3](Images/outputs.png)
 
 ---
 
