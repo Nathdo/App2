@@ -5,7 +5,7 @@ import pyodbc
 import secrets
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # Clé secrète aléatoire
+app.secret_key = secrets.token_hex(16)  
 
 #-------------------------------------------------------------Connection to SQL SERVER-------------------------------------------------------
 DB_CONFIG = {
